@@ -1,5 +1,6 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_xpbd_2d::{math::*, prelude::*};
+use rand::prelude::*;
 
 #[derive(Component)]
 struct Controller;
@@ -11,7 +12,6 @@ fn main() {
         .insert_resource(Gravity::ZERO)
         .add_systems(Startup, setup)
         .add_systems(Update, mouse_motion)
-        // .add_systems(Update, print)
         .run();
 }
 
@@ -53,9 +53,12 @@ fn setup(
     ));
 
     let box_width = 50. * 20.;
-    let box_height = 50. * 11.;
+    let box_height = 50. * 10.;
     let box_position = Vec2 { x: 0., y: 0. };
-    let box_thickness = 5.;
+    let box_thickness = 50.;
+    let grid_width_out = 10;
+    let grid_height_out = 5;
+    let ball_radius = 7.5;
 
     // Ceiling
     commands.spawn((
@@ -141,8 +144,9 @@ fn setup(
         Restitution::new(1.),
         Friction::new(0.),
     ));
-    for x in -12..12 {
-        for y in -12..12 {
+    let mut rng = rand::thread_rng();
+    for x in -grid_width_out..grid_width_out + 1 {
+        for y in -grid_height_out..grid_height_out + 1 {
             commands.spawn((
                 MaterialMesh2dBundle {
                     mesh: meshes.add(shape::Circle::new(7.5).into()).into(),
@@ -151,10 +155,21 @@ fn setup(
                 },
                 Collider::ball(7.5),
                 RigidBody::Dynamic,
-                Position(Vec2::new(x as Scalar * 20., y as Scalar * 20.)),
+                Position(
+                    box_position
+                        + Vec2::new(
+                            x as Scalar * (box_width - 2. * box_thickness - 2. * ball_radius)
+                                / (grid_width_out * 2) as Scalar,
+                            y as Scalar * (box_height - 2. * box_thickness - 2. * ball_radius)
+                                / (grid_height_out * 2) as Scalar,
+                        ),
+                ),
                 Restitution::new(1.),
                 Friction::new(0.),
-                LinearVelocity(Vec2::new(x as Scalar * 20., y as Scalar * 20.)),
+                LinearVelocity(Vec2::new(
+                    rng.gen_range(-200.0..200.0),
+                    rng.gen_range(-200.0..200.0),
+                )),
             ));
         }
     }
