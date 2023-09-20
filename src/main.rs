@@ -5,6 +5,17 @@ use rand::prelude::*;
 #[derive(Component)]
 struct Controller;
 
+const BOX_WIDTH: f32 = 50. * 10.;
+const BOX_HEIGHT: f32 = 50. * 5.;
+const BOX_POSITION: Vec2 = Vec2 { x: 300., y: 200. };
+const BOX_THICKNESS: f32 = 8.;
+const GRID_WIDTH_OUT: i32 = 16;
+const GRID_HEIGHT_OUT: i32 = 8;
+const BALL_RADIUS: f32 = 4.;
+const PLOT_WIDTH: f32 = 50. * 10.;
+const PLOT_HEIGHT: f32 = 50. * 5.;
+const PLOT_POSITION: Vec2 = Vec2 { x: -300., y: -200. };
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
@@ -28,9 +39,15 @@ fn mouse_motion(
                 .0
                 .viewport_to_world_2d(camera_q.single().1, cursor)
         }) {
-            for mut transform in &mut controllers {
-                transform.translation.x = position.x;
-                transform.translation.y = position.y;
+            if position.x < PLOT_POSITION.x + PLOT_WIDTH / 2.
+                && position.x > PLOT_POSITION.x - PLOT_WIDTH / 2.
+                && position.y < PLOT_POSITION.y + PLOT_HEIGHT / 2.
+                && position.y > PLOT_POSITION.y - PLOT_HEIGHT / 2.
+            {
+                for mut transform in &mut controllers {
+                    transform.translation.x = position.x;
+                    transform.translation.y = position.y;
+                }
             }
         }
     }
@@ -47,37 +64,47 @@ fn setup(
         MaterialMesh2dBundle {
             mesh: meshes.add(shape::Circle::new(20.).into()).into(),
             material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.2, 0.2))),
+            transform: Transform::from_translation(Vec3 {
+                x: PLOT_POSITION.x,
+                y: PLOT_POSITION.y,
+                z: 1.,
+            }),
             ..default()
         },
         Controller,
     ));
 
-    let box_width = 50. * 20.;
-    let box_height = 50. * 10.;
-    let box_position = Vec2 { x: 0., y: 0. };
-    let box_thickness = 50.;
-    let grid_width_out = 10;
-    let grid_height_out = 5;
-    let ball_radius = 7.5;
+    commands.spawn(MaterialMesh2dBundle {
+        mesh: meshes
+            .add(shape::Quad::new(Vec2::new(PLOT_WIDTH, PLOT_HEIGHT)).into())
+            .into(),
+        material: materials.add(ColorMaterial::from(Color::rgb(0.1, 0.1, 0.1))),
+        transform: Transform::from_translation(Vec3 {
+            x: PLOT_POSITION.x,
+            y: PLOT_POSITION.y,
+            z: 0.,
+        }),
+        ..default()
+    });
 
     // Ceiling
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes
-                .add(shape::Quad::new(Vec2::new(box_width, box_thickness)).into())
+                .add(shape::Quad::new(Vec2::new(BOX_WIDTH, BOX_THICKNESS)).into())
                 .into(),
             material: materials.add(ColorMaterial::from(Color::rgb(0.7, 0.7, 0.8))),
             ..default()
         },
         RigidBody::Static,
         Position(
-            box_position
+            BOX_POSITION
                 + Vec2 {
                     x: 0.,
-                    y: (box_height - box_thickness) / 2.,
+                    y: (BOX_HEIGHT - BOX_THICKNESS) / 2.,
                 },
         ),
-        Collider::cuboid(box_width, box_thickness),
+        Collider::cuboid(BOX_WIDTH, BOX_THICKNESS),
         Restitution::new(1.),
         Friction::new(0.),
     ));
@@ -85,20 +112,20 @@ fn setup(
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes
-                .add(shape::Quad::new(Vec2::new(box_width, box_thickness)).into())
+                .add(shape::Quad::new(Vec2::new(BOX_WIDTH, BOX_THICKNESS)).into())
                 .into(),
             material: materials.add(ColorMaterial::from(Color::rgb(0.7, 0.7, 0.8))),
             ..default()
         },
         RigidBody::Static,
         Position(
-            box_position
+            BOX_POSITION
                 + Vec2 {
                     x: 0.,
-                    y: -(box_height - box_thickness) / 2.,
+                    y: -(BOX_HEIGHT - BOX_THICKNESS) / 2.,
                 },
         ),
-        Collider::cuboid(box_width, box_thickness),
+        Collider::cuboid(BOX_WIDTH, BOX_THICKNESS),
         Restitution::new(1.),
         Friction::new(0.),
     ));
@@ -106,20 +133,20 @@ fn setup(
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes
-                .add(shape::Quad::new(Vec2::new(box_thickness, box_height)).into())
+                .add(shape::Quad::new(Vec2::new(BOX_THICKNESS, BOX_HEIGHT)).into())
                 .into(),
             material: materials.add(ColorMaterial::from(Color::rgb(0.7, 0.7, 0.8))),
             ..default()
         },
         RigidBody::Static,
         Position(
-            box_position
+            BOX_POSITION
                 + Vec2 {
-                    x: (box_width - box_thickness) / 2.,
+                    x: (BOX_WIDTH - BOX_THICKNESS) / 2.,
                     y: 0.,
                 },
         ),
-        Collider::cuboid(box_thickness, box_height),
+        Collider::cuboid(BOX_THICKNESS, BOX_HEIGHT),
         Restitution::new(1.),
         Friction::new(0.),
     ));
@@ -127,41 +154,41 @@ fn setup(
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes
-                .add(shape::Quad::new(Vec2::new(box_thickness, box_height)).into())
+                .add(shape::Quad::new(Vec2::new(BOX_THICKNESS, BOX_HEIGHT)).into())
                 .into(),
             material: materials.add(ColorMaterial::from(Color::rgb(0.7, 0.7, 0.8))),
             ..default()
         },
         RigidBody::Static,
         Position(
-            box_position
+            BOX_POSITION
                 + Vec2 {
-                    x: -(box_width - box_thickness) / 2.,
+                    x: -(BOX_WIDTH - BOX_THICKNESS) / 2.,
                     y: 0.,
                 },
         ),
-        Collider::cuboid(box_thickness, box_height),
+        Collider::cuboid(BOX_THICKNESS, BOX_HEIGHT),
         Restitution::new(1.),
         Friction::new(0.),
     ));
     let mut rng = rand::thread_rng();
-    for x in -grid_width_out..grid_width_out + 1 {
-        for y in -grid_height_out..grid_height_out + 1 {
+    for x in -GRID_WIDTH_OUT..GRID_WIDTH_OUT + 1 {
+        for y in -GRID_HEIGHT_OUT..GRID_HEIGHT_OUT + 1 {
             commands.spawn((
                 MaterialMesh2dBundle {
-                    mesh: meshes.add(shape::Circle::new(7.5).into()).into(),
+                    mesh: meshes.add(shape::Circle::new(BALL_RADIUS).into()).into(),
                     material: materials.add(ColorMaterial::from(Color::rgb(0.29, 0.33, 0.64))),
                     ..default()
                 },
-                Collider::ball(7.5),
+                Collider::ball(BALL_RADIUS),
                 RigidBody::Dynamic,
                 Position(
-                    box_position
+                    BOX_POSITION
                         + Vec2::new(
-                            x as Scalar * (box_width - 2. * box_thickness - 2. * ball_radius)
-                                / (grid_width_out * 2) as Scalar,
-                            y as Scalar * (box_height - 2. * box_thickness - 2. * ball_radius)
-                                / (grid_height_out * 2) as Scalar,
+                            x as Scalar * (BOX_WIDTH - 2. * BOX_THICKNESS - 2. * BALL_RADIUS)
+                                / (GRID_WIDTH_OUT * 2) as Scalar,
+                            y as Scalar * (BOX_HEIGHT - 2. * BOX_THICKNESS - 2. * BALL_RADIUS)
+                                / (GRID_HEIGHT_OUT * 2) as Scalar,
                         ),
                 ),
                 Restitution::new(1.),
