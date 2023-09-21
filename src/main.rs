@@ -45,6 +45,7 @@ fn main() {
         .add_systems(Update, handle_pv_input)
         .add_systems(Update, move_handle)
         .add_systems(Update, move_piston)
+        .add_systems(Update, fix_particles)
         .run();
 }
 
@@ -84,6 +85,26 @@ fn move_handle(mut handles: Query<&mut Transform, With<Handle>>, data: Res<Data>
 fn move_piston(mut pistons: Query<&mut Position, With<Piston>>, data: Res<Data>) {
     for mut position in &mut pistons {
         position.x = data.handle_x;
+    }
+}
+
+fn fix_particles(mut particles: Query<&mut Position, With<Particle>>, data: Res<Data>) {
+    let mut rng = rand::thread_rng();
+    for mut position in &mut particles {
+        if position.x < data.handle_x - BOX_THICKNESS / 2.
+            || position.x > BOX_POSITION.x + BOX_WIDTH / 2.
+            || position.y < BOX_POSITION.y - BOX_HEIGHT / 2.
+            || position.y > BOX_POSITION.y + BOX_HEIGHT / 2.
+        {
+            position.x = rng.gen_range(
+                (data.handle_x + BOX_THICKNESS / 2.0) as i32
+                    ..(BOX_POSITION.x + BOX_WIDTH / 2. - BOX_THICKNESS) as i32,
+            ) as Scalar;
+            position.y = rng.gen_range(
+                (BOX_POSITION.y - BOX_HEIGHT / 2. + BOX_THICKNESS) as i32
+                    ..(BOX_POSITION.y + BOX_HEIGHT / 2. - BOX_THICKNESS) as i32,
+            ) as Scalar;
+        }
     }
 }
 
