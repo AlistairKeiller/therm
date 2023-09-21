@@ -91,19 +91,19 @@ fn move_piston(mut pistons: Query<&mut Position, With<Piston>>, data: Res<Data>)
 fn fix_particles(mut particles: Query<&mut Position, With<Particle>>, data: Res<Data>) {
     let mut rng = rand::thread_rng();
     for mut position in &mut particles {
-        if position.x < data.handle_x - BOX_THICKNESS / 2.
-            || position.x > BOX_POSITION.x + BOX_WIDTH / 2.
+        if position.x < BOX_POSITION.x - BOX_WIDTH / 2.
+            || position.x > data.handle_x + BOX_THICKNESS / 2.
             || position.y < BOX_POSITION.y - BOX_HEIGHT / 2.
             || position.y > BOX_POSITION.y + BOX_HEIGHT / 2.
         {
             position.x = rng.gen_range(
-                (data.handle_x + BOX_THICKNESS / 2.0) as i32
-                    ..(BOX_POSITION.x + BOX_WIDTH / 2. - BOX_THICKNESS) as i32,
-            ) as Scalar;
+                BOX_POSITION.x - BOX_WIDTH / 2. + BOX_THICKNESS
+                    ..data.handle_x - BOX_THICKNESS / 2.0,
+            );
             position.y = rng.gen_range(
-                (BOX_POSITION.y - BOX_HEIGHT / 2. + BOX_THICKNESS) as i32
-                    ..(BOX_POSITION.y + BOX_HEIGHT / 2. - BOX_THICKNESS) as i32,
-            ) as Scalar;
+                BOX_POSITION.y - BOX_HEIGHT / 2. + BOX_THICKNESS
+                    ..BOX_POSITION.y + BOX_HEIGHT / 2. - BOX_THICKNESS,
+            );
         }
     }
 }
@@ -211,6 +211,7 @@ fn setup(
         Collider::cuboid(BOX_THICKNESS, BOX_HEIGHT),
         Restitution::new(1.),
         Friction::new(0.),
+        Piston,
     ));
     // Left wall
     commands.spawn((
@@ -232,7 +233,6 @@ fn setup(
         Collider::cuboid(BOX_THICKNESS, BOX_HEIGHT),
         Restitution::new(1.),
         Friction::new(0.),
-        Piston,
     ));
     let mut rng = rand::thread_rng();
     for x in -GRID_WIDTH_OUT..GRID_WIDTH_OUT + 1 {
