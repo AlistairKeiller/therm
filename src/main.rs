@@ -109,7 +109,7 @@ fn fix_particles(mut particles: Query<&mut Position, With<Particle>>, data: Res<
     let mut rng = rand::thread_rng();
     for mut position in &mut particles {
         if position.x < BOX_POSITION.x - BOX_WIDTH / 2.
-            || position.x > data.handle_x + BOX_THICKNESS / 2.
+            || position.x > data.handle_x - BOX_THICKNESS / 2.
             || position.y < BOX_POSITION.y - BOX_HEIGHT / 2.
             || position.y > BOX_POSITION.y + BOX_HEIGHT / 2.
         {
