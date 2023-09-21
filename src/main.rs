@@ -2,19 +2,39 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_xpbd_2d::{math::*, prelude::*};
 use rand::prelude::*;
 
-#[derive(Component)]
-struct Controller;
-
-const BOX_WIDTH: f32 = 50. * 10.;
+const BOX_WIDTH: f32 = 50. * 20.;
 const BOX_HEIGHT: f32 = 50. * 5.;
-const BOX_POSITION: Vec2 = Vec2 { x: 300., y: 200. };
-const BOX_THICKNESS: f32 = 8.;
-const GRID_WIDTH_OUT: i32 = 16;
-const GRID_HEIGHT_OUT: i32 = 8;
-const BALL_RADIUS: f32 = 4.;
-const PLOT_WIDTH: f32 = 50. * 10.;
+const BOX_POSITION: Vec2 = Vec2 { x: 0., y: 200. };
+const BOX_THICKNESS: f32 = 32.;
+
+const PLOT_WIDTH: f32 = 50. * 20.;
 const PLOT_HEIGHT: f32 = 50. * 5.;
-const PLOT_POSITION: Vec2 = Vec2 { x: -300., y: -200. };
+const PLOT_POSITION: Vec2 = Vec2 { x: 0., y: -200. };
+
+const GRID_WIDTH_OUT: i32 = 8;
+const GRID_HEIGHT_OUT: i32 = 4;
+
+const BALL_RADIUS: f32 = 4.;
+
+#[derive(Component)]
+struct Handle;
+
+#[derive(Component)]
+struct Piston;
+
+#[derive(Component)]
+struct Particle;
+
+#[derive(Component)]
+struct Test;
+
+#[derive(Resource)]
+struct Data {
+    handle_x: f32,
+    handle_y: f32,
+    delta_handle_x: f32,
+    delta_handle_y: f32,
+}
 
 fn main() {
     App::new()
@@ -22,34 +42,48 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(Gravity::ZERO)
         .add_systems(Startup, setup)
-        .add_systems(Update, mouse_motion)
+        .add_systems(Update, handle_pv_input)
+        .add_systems(Update, move_handle)
+        .add_systems(Update, move_piston)
         .run();
 }
 
-fn mouse_motion(
+fn handle_pv_input(
     buttons: Res<Input<MouseButton>>,
     windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform), With<Camera>>,
-    mut controllers: Query<&mut Transform, With<Controller>>,
+    mut data: ResMut<Data>,
 ) {
-    if buttons.pressed(MouseButton::Left) {
-        if let Some(position) = windows.single().cursor_position().and_then(|cursor| {
-            camera_q
-                .single()
-                .0
-                .viewport_to_world_2d(camera_q.single().1, cursor)
-        }) {
-            if position.x < PLOT_POSITION.x + PLOT_WIDTH / 2.
-                && position.x > PLOT_POSITION.x - PLOT_WIDTH / 2.
-                && position.y < PLOT_POSITION.y + PLOT_HEIGHT / 2.
-                && position.y > PLOT_POSITION.y - PLOT_HEIGHT / 2.
-            {
-                for mut transform in &mut controllers {
-                    transform.translation.x = position.x;
-                    transform.translation.y = position.y;
-                }
-            }
+    if let Some(mouse_position) = windows.single().cursor_position().and_then(|cursor| {
+        camera_q
+            .single()
+            .0
+            .viewport_to_world_2d(camera_q.single().1, cursor)
+    }) {
+        if buttons.pressed(MouseButton::Left)
+            && mouse_position.x < PLOT_POSITION.x + PLOT_WIDTH / 2.
+            && mouse_position.x > PLOT_POSITION.x - PLOT_WIDTH / 2.
+            && mouse_position.y < PLOT_POSITION.y + PLOT_HEIGHT / 2.
+            && mouse_position.y > PLOT_POSITION.y - PLOT_HEIGHT / 2.
+        {
+            data.delta_handle_x = mouse_position.x - data.handle_x;
+            data.delta_handle_y = mouse_position.y - data.handle_y;
+            data.handle_x = mouse_position.x;
+            data.handle_y = mouse_position.y;
         }
+    }
+}
+
+fn move_handle(mut handles: Query<&mut Transform, With<Handle>>, data: Res<Data>) {
+    for mut transform in &mut handles {
+        transform.translation.x = data.handle_x;
+        transform.translation.y = data.handle_y;
+    }
+}
+
+fn move_piston(mut pistons: Query<&mut Position, With<Piston>>, data: Res<Data>) {
+    for mut position in &mut pistons {
+        position.x = data.handle_x;
     }
 }
 
@@ -59,6 +93,13 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     commands.spawn(Camera2dBundle::default());
+
+    commands.insert_resource(Data {
+        handle_x: 0.,
+        handle_y: 0.,
+        delta_handle_x: 0.,
+        delta_handle_y: 0.,
+    });
 
     commands.spawn((
         MaterialMesh2dBundle {
@@ -71,7 +112,7 @@ fn setup(
             }),
             ..default()
         },
-        Controller,
+        Handle,
     ));
 
     commands.spawn(MaterialMesh2dBundle {
@@ -170,6 +211,7 @@ fn setup(
         Collider::cuboid(BOX_THICKNESS, BOX_HEIGHT),
         Restitution::new(1.),
         Friction::new(0.),
+        Piston,
     ));
     let mut rng = rand::thread_rng();
     for x in -GRID_WIDTH_OUT..GRID_WIDTH_OUT + 1 {
@@ -185,9 +227,9 @@ fn setup(
                 Position(
                     BOX_POSITION
                         + Vec2::new(
-                            x as Scalar * (BOX_WIDTH - 2. * BOX_THICKNESS - 2. * BALL_RADIUS)
+                            x as Scalar * (BOX_WIDTH - 2. * BOX_THICKNESS - 3. * BALL_RADIUS)
                                 / (GRID_WIDTH_OUT * 2) as Scalar,
-                            y as Scalar * (BOX_HEIGHT - 2. * BOX_THICKNESS - 2. * BALL_RADIUS)
+                            y as Scalar * (BOX_HEIGHT - 2. * BOX_THICKNESS - 3. * BALL_RADIUS)
                                 / (GRID_HEIGHT_OUT * 2) as Scalar,
                         ),
                 ),
@@ -197,6 +239,7 @@ fn setup(
                     rng.gen_range(-200.0..200.0),
                     rng.gen_range(-200.0..200.0),
                 )),
+                Particle,
             ));
         }
     }
