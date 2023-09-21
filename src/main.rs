@@ -7,14 +7,18 @@ const BOX_HEIGHT: f32 = 50. * 5.;
 const BOX_POSITION: Vec2 = Vec2 { x: 0., y: 200. };
 const BOX_THICKNESS: f32 = 32.;
 
-const PLOT_WIDTH: f32 = 50. * 20.;
-const PLOT_HEIGHT: f32 = 50. * 5.;
+const PLOT_WIDTH: f32 = BOX_WIDTH - BOX_THICKNESS * 6.;
+const PLOT_HEIGHT: f32 = BOX_HEIGHT;
 const PLOT_POSITION: Vec2 = Vec2 { x: 0., y: -200. };
 
 const GRID_WIDTH_OUT: i32 = 8;
 const GRID_HEIGHT_OUT: i32 = 4;
 
 const BALL_RADIUS: f32 = 4.;
+
+const SPEED_SCALE: f32 = 16.;
+
+const HANDLE_RADIUS: f32 = 16.;
 
 #[derive(Component)]
 struct Handle;
@@ -36,6 +40,18 @@ struct Data {
     delta_handle_y: f32,
 }
 
+impl Data {
+    fn get_volume(&self) -> f32 {
+        return self.handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.);
+    }
+    fn get_pressure(&self) -> f32 {
+        return self.handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
+    }
+    fn get_tempurature(&self) -> f32 {
+        return self.get_volume() * self.get_pressure() * SPEED_SCALE;
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
@@ -46,6 +62,7 @@ fn main() {
         .add_systems(Update, move_handle)
         .add_systems(Update, move_piston)
         .add_systems(Update, fix_particles)
+        .add_systems(Update, fix_particles_energy)
         .run();
 }
 
@@ -62,10 +79,10 @@ fn handle_pv_input(
             .viewport_to_world_2d(camera_q.single().1, cursor)
     }) {
         if buttons.pressed(MouseButton::Left)
-            && mouse_position.x < PLOT_POSITION.x + PLOT_WIDTH / 2.
-            && mouse_position.x > PLOT_POSITION.x - PLOT_WIDTH / 2.
-            && mouse_position.y < PLOT_POSITION.y + PLOT_HEIGHT / 2.
-            && mouse_position.y > PLOT_POSITION.y - PLOT_HEIGHT / 2.
+            && mouse_position.x < PLOT_POSITION.x + PLOT_WIDTH / 2. - HANDLE_RADIUS
+            && mouse_position.x > PLOT_POSITION.x - PLOT_WIDTH / 2. + HANDLE_RADIUS
+            && mouse_position.y < PLOT_POSITION.y + PLOT_HEIGHT / 2. - HANDLE_RADIUS
+            && mouse_position.y > PLOT_POSITION.y - PLOT_HEIGHT / 2. + HANDLE_RADIUS
         {
             data.delta_handle_x = mouse_position.x - data.handle_x;
             data.delta_handle_y = mouse_position.y - data.handle_y;
@@ -97,14 +114,29 @@ fn fix_particles(mut particles: Query<&mut Position, With<Particle>>, data: Res<
             || position.y > BOX_POSITION.y + BOX_HEIGHT / 2.
         {
             position.x = rng.gen_range(
-                BOX_POSITION.x - BOX_WIDTH / 2. + BOX_THICKNESS
-                    ..data.handle_x - BOX_THICKNESS / 2.0,
+                BOX_POSITION.x - BOX_WIDTH / 2. + BOX_THICKNESS + BALL_RADIUS
+                    ..data.handle_x - BOX_THICKNESS / 2.0 - BALL_RADIUS,
             );
             position.y = rng.gen_range(
-                BOX_POSITION.y - BOX_HEIGHT / 2. + BOX_THICKNESS
-                    ..BOX_POSITION.y + BOX_HEIGHT / 2. - BOX_THICKNESS,
+                BOX_POSITION.y - BOX_HEIGHT / 2. + BOX_THICKNESS + BALL_RADIUS
+                    ..BOX_POSITION.y + BOX_HEIGHT / 2. - BOX_THICKNESS - BALL_RADIUS,
             );
         }
+    }
+}
+
+fn fix_particles_energy(
+    mut particles: Query<&mut LinearVelocity, With<Particle>>,
+    data: Res<Data>,
+) {
+    let mut current_energy = 0.;
+    for velocity in &mut particles {
+        current_energy += velocity.length_squared();
+    }
+    let scale = (data.get_tempurature() / current_energy).sqrt();
+    for mut velocity in &mut particles {
+        velocity.x *= scale;
+        velocity.y *= scale;
     }
 }
 
@@ -116,15 +148,15 @@ fn setup(
     commands.spawn(Camera2dBundle::default());
 
     commands.insert_resource(Data {
-        handle_x: 0.,
-        handle_y: 0.,
+        handle_x: PLOT_POSITION.x,
+        handle_y: PLOT_POSITION.y,
         delta_handle_x: 0.,
         delta_handle_y: 0.,
     });
 
     commands.spawn((
         MaterialMesh2dBundle {
-            mesh: meshes.add(shape::Circle::new(20.).into()).into(),
+            mesh: meshes.add(shape::Circle::new(HANDLE_RADIUS).into()).into(),
             material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.2, 0.2))),
             transform: Transform::from_translation(Vec3 {
                 x: PLOT_POSITION.x,
