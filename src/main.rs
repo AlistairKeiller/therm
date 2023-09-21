@@ -88,15 +88,23 @@ fn handle_pv_input(
             .viewport_to_world_2d(camera_q.single().1, cursor)
     }) {
         if buttons.pressed(MouseButton::Left)
-            && mouse_position.x < PLOT_POSITION.x + PLOT_WIDTH / 2. - HANDLE_RADIUS
-            && mouse_position.x > PLOT_POSITION.x - PLOT_WIDTH / 2. + HANDLE_RADIUS
-            && mouse_position.y < PLOT_POSITION.y + PLOT_HEIGHT / 2. - HANDLE_RADIUS
-            && mouse_position.y > PLOT_POSITION.y - PLOT_HEIGHT / 2. + HANDLE_RADIUS
+        // && mouse_position.x < PLOT_POSITION.x + PLOT_WIDTH / 2. - HANDLE_RADIUS
+        // && mouse_position.x > PLOT_POSITION.x - PLOT_WIDTH / 2. + HANDLE_RADIUS
+        // && mouse_position.y < PLOT_POSITION.y + PLOT_HEIGHT / 2. - HANDLE_RADIUS
+        // && mouse_position.y > PLOT_POSITION.y - PLOT_HEIGHT / 2. + HANDLE_RADIUS
         {
-            data.delta_handle_x = mouse_position.x - data.handle_x;
-            data.delta_handle_y = mouse_position.y - data.handle_y;
-            data.handle_x = mouse_position.x;
-            data.handle_y = mouse_position.y;
+            let new_handle_x = mouse_position.x.clamp(
+                PLOT_POSITION.x - PLOT_WIDTH / 2. + HANDLE_RADIUS,
+                PLOT_POSITION.x + PLOT_WIDTH / 2. - HANDLE_RADIUS,
+            );
+            let new_handle_y = mouse_position.y.clamp(
+                PLOT_POSITION.y - PLOT_HEIGHT / 2. + HANDLE_RADIUS,
+                PLOT_POSITION.y + PLOT_HEIGHT / 2. - HANDLE_RADIUS,
+            );
+            data.delta_handle_x = new_handle_x - data.handle_x;
+            data.delta_handle_y = new_handle_y - data.handle_y;
+            data.handle_x = new_handle_x;
+            data.handle_y = new_handle_y;
         }
     }
 }
