@@ -32,6 +32,9 @@ struct Particle;
 #[derive(Component)]
 struct Test;
 
+#[derive(Component)]
+struct MovingWall;
+
 #[derive(Resource)]
 struct Data {
     handle_x: f32,
@@ -58,11 +61,17 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(Gravity::ZERO)
         .add_systems(Startup, setup)
-        .add_systems(Update, handle_pv_input)
-        .add_systems(Update, move_handle)
-        .add_systems(Update, move_piston)
-        .add_systems(Update, fix_particles)
-        .add_systems(Update, fix_particles_energy)
+        .add_systems(
+            Update,
+            (
+                handle_pv_input,
+                move_handle,
+                move_piston,
+                fix_particles,
+                fix_particles_energy,
+                move_walls,
+            ),
+        )
         .run();
 }
 
@@ -140,6 +149,19 @@ fn fix_particles_energy(
     }
 }
 
+fn move_walls(
+    mut walls: Query<&mut Transform, With<MovingWall>>,
+    data: Res<Data>,
+    buttons: Res<Input<MouseButton>>,
+) {
+    for mut transform in &mut walls {
+        transform.scale.x =
+            (data.handle_x + BOX_THICKNESS / 2. - (BOX_POSITION.x - BOX_WIDTH / 2.)) / BOX_WIDTH;
+        transform.translation.x =
+            (BOX_POSITION.x - BOX_WIDTH / 2. + data.handle_x + BOX_THICKNESS / 2.) / 2.;
+    }
+}
+
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -201,6 +223,7 @@ fn setup(
         Collider::cuboid(BOX_WIDTH, BOX_THICKNESS),
         Restitution::new(1.),
         Friction::new(0.),
+        MovingWall,
     ));
     // Floor
     commands.spawn((
@@ -222,6 +245,7 @@ fn setup(
         Collider::cuboid(BOX_WIDTH, BOX_THICKNESS),
         Restitution::new(1.),
         Friction::new(0.),
+        MovingWall,
     ));
     // Right Wall
     commands.spawn((
