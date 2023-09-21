@@ -87,12 +87,7 @@ fn handle_pv_input(
             .0
             .viewport_to_world_2d(camera_q.single().1, cursor)
     }) {
-        if buttons.pressed(MouseButton::Left)
-        // && mouse_position.x < PLOT_POSITION.x + PLOT_WIDTH / 2. - HANDLE_RADIUS
-        // && mouse_position.x > PLOT_POSITION.x - PLOT_WIDTH / 2. + HANDLE_RADIUS
-        // && mouse_position.y < PLOT_POSITION.y + PLOT_HEIGHT / 2. - HANDLE_RADIUS
-        // && mouse_position.y > PLOT_POSITION.y - PLOT_HEIGHT / 2. + HANDLE_RADIUS
-        {
+        if buttons.pressed(MouseButton::Left) {
             let new_handle_x = mouse_position.x.clamp(
                 PLOT_POSITION.x - PLOT_WIDTH / 2. + HANDLE_RADIUS,
                 PLOT_POSITION.x + PLOT_WIDTH / 2. - HANDLE_RADIUS,
