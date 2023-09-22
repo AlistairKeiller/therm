@@ -38,6 +38,9 @@ struct IsobaricLine;
 #[derive(Component)]
 struct IsochoricLine;
 
+#[derive(Component)]
+struct IsothermicLine;
+
 #[derive(Resource)]
 struct Data {
     handle_x: f32,
@@ -46,10 +49,28 @@ struct Data {
     delta_handle_y: f32,
 }
 
+fn get_volume(handle_x: f32) -> f32 {
+    return handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.);
+}
+
+fn get_pressure(handle_y: f32) -> f32 {
+    return handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
+}
+
+fn get_pressure_from_tempurature(volume: f32, tempurature: f32) -> f32 {
+    return tempurature / (volume * SPEED_SCALE);
+}
+
 fn get_tempurature(handle_x: f32, handle_y: f32) -> f32 {
-    return (handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.))
-        * (handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.))
-        * SPEED_SCALE;
+    return get_volume(handle_x) * get_pressure(handle_y) * SPEED_SCALE;
+}
+
+fn get_handle_x(volume: f32) -> f32 {
+    return volume + (PLOT_POSITION.x - PLOT_WIDTH / 2.);
+}
+
+fn get_handle_y(pressure: f32) -> f32 {
+    return pressure + (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
 }
 
 fn main() {
@@ -67,6 +88,7 @@ fn main() {
                 move_walls,
                 move_isobaric,
                 move_isochoric,
+                move_isothermic,
                 fix_particles,
                 fix_particles_energy,
             ),
@@ -194,6 +216,42 @@ fn move_isochoric(mut isobarics: Query<&mut Path, With<IsochoricLine>>, data: Re
     }
 }
 
+fn move_isothermic(mut isothermics: Query<&mut Path, With<IsothermicLine>>, data: Res<Data>) {
+    for mut path in &mut isothermics {
+        let tempurature = get_tempurature(data.handle_x, data.handle_y);
+        let mut path_builder = PathBuilder::new();
+        path_builder.move_to(Vec2 {
+            x: data.handle_x,
+            y: data.handle_y,
+        });
+        for handle_x in ((PLOT_POSITION.x - PLOT_WIDTH / 2.) as i32..data.handle_x as i32).rev() {
+            let pressure = get_pressure_from_tempurature(get_volume(handle_x as f32), tempurature);
+            if pressure > get_pressure(PLOT_POSITION.y + PLOT_HEIGHT / 2.) {
+                break;
+            }
+            path_builder.line_to(Vec2 {
+                x: handle_x as f32,
+                y: get_handle_y(pressure),
+            });
+        }
+        path_builder.move_to(Vec2 {
+            x: data.handle_x,
+            y: data.handle_y,
+        });
+        for handle_x in data.handle_x as i32..(PLOT_POSITION.x + PLOT_WIDTH / 2.) as i32 {
+            let pressure = get_pressure_from_tempurature(get_volume(handle_x as f32), tempurature);
+            if pressure < get_pressure(PLOT_POSITION.y - PLOT_HEIGHT / 2.) {
+                break;
+            }
+            path_builder.line_to(Vec2 {
+                x: handle_x as f32,
+                y: get_handle_y(pressure),
+            });
+        }
+        *path = path_builder.build();
+    }
+}
+
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -215,6 +273,11 @@ fn setup(
         ShapeBundle { ..default() },
         Stroke::new(Color::BLACK, 5.0),
         IsochoricLine,
+    ));
+    commands.spawn((
+        ShapeBundle { ..default() },
+        Stroke::new(Color::BLACK, 5.0),
+        IsothermicLine,
     ));
 
     commands.spawn((
