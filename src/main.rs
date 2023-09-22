@@ -1,9 +1,10 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy_prototype_lyon::prelude::*;
 use bevy_xpbd_2d::{math::*, prelude::*};
 use rand::prelude::*;
 
-const BOX_WIDTH: f32 = 50. * 20.;
-const BOX_HEIGHT: f32 = 50. * 5.;
+const BOX_WIDTH: f32 = 1000.;
+const BOX_HEIGHT: f32 = 250.;
 const BOX_POSITION: Vec2 = Vec2 { x: 0., y: 200. };
 const BOX_THICKNESS: f32 = 32.;
 
@@ -14,11 +15,10 @@ const PLOT_POSITION: Vec2 = Vec2 { x: 0., y: -200. };
 const GRID_WIDTH_OUT: i32 = 8;
 const GRID_HEIGHT_OUT: i32 = 4;
 
-const BALL_RADIUS: f32 = 4.;
+const PARTICLE_RADIUS: f32 = 4.;
+const HANDLE_RADIUS: f32 = 16.;
 
 const SPEED_SCALE: f32 = 16.;
-
-const HANDLE_RADIUS: f32 = 16.;
 
 #[derive(Component)]
 struct Handle;
@@ -30,10 +30,10 @@ struct Piston;
 struct Particle;
 
 #[derive(Component)]
-struct Test;
+struct MovingWall;
 
 #[derive(Component)]
-struct MovingWall;
+struct Isobaric;
 
 #[derive(Resource)]
 struct Data {
@@ -57,7 +57,7 @@ impl Data {
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        .add_plugins((DefaultPlugins, ShapePlugin, PhysicsPlugins::default()))
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(Gravity::ZERO)
         .add_systems(Startup, setup)
@@ -70,6 +70,7 @@ fn main() {
                 fix_particles,
                 fix_particles_energy,
                 move_walls,
+                move_isobaric,
             ),
         )
         .run();
@@ -126,12 +127,12 @@ fn fix_particles(mut particles: Query<&mut Position, With<Particle>>, data: Res<
             || position.y > BOX_POSITION.y + BOX_HEIGHT / 2.
         {
             position.x = rng.gen_range(
-                BOX_POSITION.x - BOX_WIDTH / 2. + BOX_THICKNESS + BALL_RADIUS
-                    ..data.handle_x - BOX_THICKNESS / 2.0 - BALL_RADIUS,
+                BOX_POSITION.x - BOX_WIDTH / 2. + BOX_THICKNESS + PARTICLE_RADIUS
+                    ..data.handle_x - BOX_THICKNESS / 2.0 - PARTICLE_RADIUS,
             );
             position.y = rng.gen_range(
-                BOX_POSITION.y - BOX_HEIGHT / 2. + BOX_THICKNESS + BALL_RADIUS
-                    ..BOX_POSITION.y + BOX_HEIGHT / 2. - BOX_THICKNESS - BALL_RADIUS,
+                BOX_POSITION.y - BOX_HEIGHT / 2. + BOX_THICKNESS + PARTICLE_RADIUS
+                    ..BOX_POSITION.y + BOX_HEIGHT / 2. - BOX_THICKNESS - PARTICLE_RADIUS,
             );
         }
     }
@@ -152,16 +153,27 @@ fn fix_particles_energy(
     }
 }
 
-fn move_walls(
-    mut walls: Query<&mut Transform, With<MovingWall>>,
-    data: Res<Data>,
-    buttons: Res<Input<MouseButton>>,
-) {
+fn move_walls(mut walls: Query<&mut Transform, With<MovingWall>>, data: Res<Data>) {
     for mut transform in &mut walls {
         transform.scale.x =
             (data.handle_x + BOX_THICKNESS / 2. - (BOX_POSITION.x - BOX_WIDTH / 2.)) / BOX_WIDTH;
         transform.translation.x =
             (BOX_POSITION.x - BOX_WIDTH / 2. + data.handle_x + BOX_THICKNESS / 2.) / 2.;
+    }
+}
+
+fn move_isobaric(mut isobarics: Query<&mut Path, With<Isobaric>>, data: Res<Data>) {
+    for mut path in &mut isobarics {
+        let mut path_builder = PathBuilder::new();
+        path_builder.move_to(Vec2 {
+            x: PLOT_POSITION.x - PLOT_WIDTH / 2.,
+            y: data.handle_y,
+        });
+        path_builder.line_to(Vec2 {
+            x: PLOT_POSITION.x + PLOT_WIDTH / 2.,
+            y: data.handle_y,
+        });
+        *path = path_builder.build();
     }
 }
 
@@ -171,6 +183,23 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     commands.spawn(Camera2dBundle::default());
+
+    let mut path_builder = PathBuilder::new();
+    path_builder.move_to(Vec2 {
+        x: PLOT_POSITION.x - PLOT_WIDTH / 2.,
+        y: PLOT_POSITION.y,
+    });
+    path_builder.line_to(Vec2 {
+        x: PLOT_POSITION.x + PLOT_WIDTH / 2.,
+        y: PLOT_POSITION.y,
+    });
+    let path = path_builder.build();
+
+    commands.spawn((
+        ShapeBundle { path, ..default() },
+        Stroke::new(Color::BLACK, 5.0),
+        Isobaric,
+    ));
 
     commands.insert_resource(Data {
         handle_x: PLOT_POSITION.x,
@@ -298,18 +327,20 @@ fn setup(
         for y in -GRID_HEIGHT_OUT..GRID_HEIGHT_OUT + 1 {
             commands.spawn((
                 MaterialMesh2dBundle {
-                    mesh: meshes.add(shape::Circle::new(BALL_RADIUS).into()).into(),
+                    mesh: meshes
+                        .add(shape::Circle::new(PARTICLE_RADIUS).into())
+                        .into(),
                     material: materials.add(ColorMaterial::from(Color::rgb(0.29, 0.33, 0.64))),
                     ..default()
                 },
-                Collider::ball(BALL_RADIUS),
+                Collider::ball(PARTICLE_RADIUS),
                 RigidBody::Dynamic,
                 Position(
                     BOX_POSITION
                         + Vec2::new(
-                            x as Scalar * (BOX_WIDTH - 2. * BOX_THICKNESS - 3. * BALL_RADIUS)
+                            x as Scalar * (BOX_WIDTH - 2. * BOX_THICKNESS - 3. * PARTICLE_RADIUS)
                                 / (GRID_WIDTH_OUT * 2) as Scalar,
-                            y as Scalar * (BOX_HEIGHT - 2. * BOX_THICKNESS - 3. * BALL_RADIUS)
+                            y as Scalar * (BOX_HEIGHT - 2. * BOX_THICKNESS - 3. * PARTICLE_RADIUS)
                                 / (GRID_HEIGHT_OUT * 2) as Scalar,
                         ),
                 ),
