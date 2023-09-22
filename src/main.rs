@@ -46,6 +46,9 @@ struct IsochoricLine;
 #[derive(Component)]
 struct IsothermicLine;
 
+#[derive(Component)]
+struct TempuratureReading;
+
 #[derive(Resource)]
 struct Data {
     handle_x: Scalar,
@@ -93,6 +96,7 @@ fn main() {
                 move_isothermic,
                 fix_particles_location,
                 fix_particles_energy,
+                update_tempurature_reading,
             ),
         )
         .run();
@@ -264,6 +268,15 @@ fn move_isothermic(mut isothermics: Query<&mut Path, With<IsothermicLine>>, data
     }
 }
 
+fn update_tempurature_reading(
+    mut tempurature_readings: Query<&mut Text, With<TempuratureReading>>,
+    data: Res<Data>,
+) {
+    for mut text in &mut tempurature_readings {
+        text.sections[0].value = format!("T = {} K", get_tempurature(data.handle_x, data.handle_y));
+    }
+}
+
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -394,6 +407,26 @@ fn setup(
         text_anchor: Anchor::CenterLeft,
         ..default()
     });
+    commands.spawn((
+        Text2dBundle {
+            text: Text::from_section(
+                "",
+                TextStyle {
+                    font_size: FONT_SIZE,
+                    color: Color::ANTIQUE_WHITE,
+                    ..default()
+                },
+            ),
+            transform: Transform::from_translation(Vec3 {
+                x: BOX_POSITION.x,
+                y: BOX_POSITION.y + BOX_HEIGHT / 2. + TEXT_OFFSET,
+                z: 0.,
+            }),
+            text_anchor: Anchor::BottomCenter,
+            ..default()
+        },
+        TempuratureReading,
+    ));
 
     // plot background
     commands.spawn(MaterialMesh2dBundle {
