@@ -35,6 +35,9 @@ struct BoxFloorOrCeiling;
 #[derive(Component)]
 struct IsobaricLine;
 
+#[derive(Component)]
+struct IsochoricLine;
+
 #[derive(Resource)]
 struct Data {
     handle_x: f32,
@@ -63,6 +66,7 @@ fn main() {
                 move_piston,
                 move_walls,
                 move_isobaric,
+                move_isochoric,
                 fix_particles,
                 fix_particles_energy,
             ),
@@ -175,6 +179,20 @@ fn move_isobaric(mut isobarics: Query<&mut Path, With<IsobaricLine>>, data: Res<
         *path = path_builder.build();
     }
 }
+fn move_isochoric(mut isobarics: Query<&mut Path, With<IsochoricLine>>, data: Res<Data>) {
+    for mut path in &mut isobarics {
+        let mut path_builder = PathBuilder::new();
+        path_builder.move_to(Vec2 {
+            x: data.handle_x,
+            y: PLOT_POSITION.y - PLOT_HEIGHT / 2.,
+        });
+        path_builder.line_to(Vec2 {
+            x: data.handle_x,
+            y: PLOT_POSITION.y + PLOT_HEIGHT / 2.,
+        });
+        *path = path_builder.build();
+    }
+}
 
 fn setup(
     mut commands: Commands,
@@ -192,6 +210,11 @@ fn setup(
         ShapeBundle { ..default() },
         Stroke::new(Color::BLACK, 5.0),
         IsobaricLine,
+    ));
+    commands.spawn((
+        ShapeBundle { ..default() },
+        Stroke::new(Color::BLACK, 5.0),
+        IsochoricLine,
     ));
 
     commands.spawn((
