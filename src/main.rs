@@ -1,16 +1,16 @@
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::{prelude::*, sprite::Anchor, sprite::MaterialMesh2dBundle};
 use bevy_prototype_lyon::prelude::*;
 use bevy_xpbd_2d::{math::*, prelude::*};
 use rand::prelude::*;
 
 const BOX_WIDTH: Scalar = 1000.;
 const BOX_HEIGHT: Scalar = 250.;
-const BOX_POSITION: Vec2 = Vec2 { x: 0., y: 200. };
+const BOX_POSITION: Vec2 = Vec2 { x: 0., y: 150. };
 const BOX_THICKNESS: Scalar = 32.;
 
 const PLOT_WIDTH: Scalar = BOX_WIDTH - BOX_THICKNESS * 6.;
 const PLOT_HEIGHT: Scalar = BOX_HEIGHT;
-const PLOT_POSITION: Vec2 = Vec2 { x: 0., y: -200. };
+const PLOT_POSITION: Vec2 = Vec2 { x: 0., y: -150. };
 
 const GRID_WIDTH_OUT: i64 = 8;
 const GRID_HEIGHT_OUT: i64 = 4;
@@ -19,6 +19,9 @@ const NUMBER_OF_PARTICLES: i64 = (GRID_WIDTH_OUT * 2 + 1) * (GRID_HEIGHT_OUT * 2
 const PARTICLE_MASS: Scalar = 1e-2; // kg
 const PARTICLE_RADIUS: Scalar = 4.;
 const HANDLE_RADIUS: Scalar = 16.;
+
+const TEXT_OFFSET: Scalar = 10.;
+const FONT_SIZE: Scalar = 40.;
 
 const BOLTZMANN_CONSTANT: Scalar = 1.380649e-23; // J/K
 
@@ -273,6 +276,7 @@ fn setup(
         delta_handle_y: 0.,
     });
 
+    // lines on plot
     commands.spawn((
         ShapeBundle { ..default() },
         Stroke::new(Color::rgb_u8(5, 46, 22), 5.0),
@@ -289,6 +293,7 @@ fn setup(
         IsothermicLine,
     ));
 
+    // handle on plot
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes.add(shape::Circle::new(HANDLE_RADIUS).into()).into(),
@@ -303,6 +308,94 @@ fn setup(
         Handle,
     ));
 
+    // text labels
+    commands.spawn(Text2dBundle {
+        text: Text::from_section(
+            "P",
+            TextStyle {
+                font_size: FONT_SIZE,
+                color: Color::ANTIQUE_WHITE,
+                ..default()
+            },
+        ),
+        transform: Transform::from_translation(Vec3 {
+            x: PLOT_POSITION.x - PLOT_WIDTH / 2. - TEXT_OFFSET,
+            y: PLOT_POSITION.y,
+            z: 0.,
+        }),
+        text_anchor: Anchor::CenterRight,
+        ..default()
+    });
+    commands.spawn(Text2dBundle {
+        text: Text::from_section(
+            "V",
+            TextStyle {
+                font_size: FONT_SIZE,
+                color: Color::ANTIQUE_WHITE,
+                ..default()
+            },
+        ),
+        transform: Transform::from_translation(Vec3 {
+            x: PLOT_POSITION.x,
+            y: PLOT_POSITION.y - PLOT_HEIGHT / 2. - TEXT_OFFSET,
+            z: 0.,
+        }),
+        text_anchor: Anchor::TopCenter,
+        ..default()
+    });
+    commands.spawn(Text2dBundle {
+        text: Text::from_section(
+            "isobaric",
+            TextStyle {
+                font_size: FONT_SIZE,
+                color: Color::rgb_u8(5, 46, 22),
+                ..default()
+            },
+        ),
+        transform: Transform::from_translation(Vec3 {
+            x: PLOT_POSITION.x + PLOT_WIDTH / 2. + TEXT_OFFSET,
+            y: PLOT_POSITION.y,
+            z: 0.,
+        }),
+        text_anchor: Anchor::CenterLeft,
+        ..default()
+    });
+    commands.spawn(Text2dBundle {
+        text: Text::from_section(
+            "isochoric",
+            TextStyle {
+                font_size: FONT_SIZE,
+                color: Color::rgb_u8(23, 37, 84),
+                ..default()
+            },
+        ),
+        transform: Transform::from_translation(Vec3 {
+            x: PLOT_POSITION.x + PLOT_WIDTH / 2. + TEXT_OFFSET,
+            y: PLOT_POSITION.y + FONT_SIZE,
+            z: 0.,
+        }),
+        text_anchor: Anchor::CenterLeft,
+        ..default()
+    });
+    commands.spawn(Text2dBundle {
+        text: Text::from_section(
+            "isothermic",
+            TextStyle {
+                font_size: FONT_SIZE,
+                color: Color::rgb_u8(69, 10, 10),
+                ..default()
+            },
+        ),
+        transform: Transform::from_translation(Vec3 {
+            x: PLOT_POSITION.x + PLOT_WIDTH / 2. + TEXT_OFFSET,
+            y: PLOT_POSITION.y - FONT_SIZE,
+            z: 0.,
+        }),
+        text_anchor: Anchor::CenterLeft,
+        ..default()
+    });
+
+    // plot background
     commands.spawn(MaterialMesh2dBundle {
         mesh: meshes
             .add(shape::Quad::new(Vec2::new(PLOT_WIDTH, PLOT_HEIGHT)).into())
@@ -316,7 +409,7 @@ fn setup(
         ..default()
     });
 
-    // Ceiling
+    // ceiling
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes
@@ -338,7 +431,7 @@ fn setup(
         Friction::new(0.),
         BoxFloorOrCeiling,
     ));
-    // Floor
+    // floor
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes
@@ -360,7 +453,7 @@ fn setup(
         Friction::new(0.),
         BoxFloorOrCeiling,
     ));
-    // Right Wall
+    // right Wall
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes
@@ -382,7 +475,7 @@ fn setup(
         Friction::new(0.),
         Piston,
     ));
-    // Left wall
+    // left wall
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes
@@ -403,6 +496,8 @@ fn setup(
         Restitution::new(1.),
         Friction::new(0.),
     ));
+
+    // particles
     let mut rng = rand::thread_rng();
     for x in -GRID_WIDTH_OUT..=GRID_WIDTH_OUT {
         for y in -GRID_HEIGHT_OUT..=GRID_HEIGHT_OUT {
