@@ -3,22 +3,24 @@ use bevy_prototype_lyon::prelude::*;
 use bevy_xpbd_2d::{math::*, prelude::*};
 use rand::prelude::*;
 
-const BOX_WIDTH: f32 = 1000.;
-const BOX_HEIGHT: f32 = 250.;
+const BOX_WIDTH: Scalar = 1000.;
+const BOX_HEIGHT: Scalar = 250.;
 const BOX_POSITION: Vec2 = Vec2 { x: 0., y: 200. };
-const BOX_THICKNESS: f32 = 32.;
+const BOX_THICKNESS: Scalar = 32.;
 
-const PLOT_WIDTH: f32 = BOX_WIDTH - BOX_THICKNESS * 6.;
-const PLOT_HEIGHT: f32 = BOX_HEIGHT;
+const PLOT_WIDTH: Scalar = BOX_WIDTH - BOX_THICKNESS * 6.;
+const PLOT_HEIGHT: Scalar = BOX_HEIGHT;
 const PLOT_POSITION: Vec2 = Vec2 { x: 0., y: -200. };
 
-const GRID_WIDTH_OUT: i32 = 8;
-const GRID_HEIGHT_OUT: i32 = 4;
+const GRID_WIDTH_OUT: i64 = 8;
+const GRID_HEIGHT_OUT: i64 = 4;
+const NUMBER_OF_PARTICLES: i64 = (GRID_WIDTH_OUT * 2 + 1) * (GRID_HEIGHT_OUT * 2 + 1);
 
-const PARTICLE_RADIUS: f32 = 4.;
-const HANDLE_RADIUS: f32 = 16.;
+const PARTICLE_MASS: Scalar = 1e-2; // kg
+const PARTICLE_RADIUS: Scalar = 4.;
+const HANDLE_RADIUS: Scalar = 16.;
 
-const SPEED_SCALE: f32 = 16.;
+const BOLTZMANN_CONSTANT: Scalar = 1.380649e-23; // J/K
 
 #[derive(Component)]
 struct Handle;
@@ -43,33 +45,34 @@ struct IsothermicLine;
 
 #[derive(Resource)]
 struct Data {
-    handle_x: f32,
-    handle_y: f32,
-    delta_handle_x: f32,
-    delta_handle_y: f32,
+    handle_x: Scalar,
+    handle_y: Scalar,
+    delta_handle_x: Scalar,
+    delta_handle_y: Scalar,
 }
 
-fn get_volume(handle_x: f32) -> f32 {
+fn get_volume(handle_x: Scalar) -> Scalar {
     return handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.);
 }
 
-fn get_pressure(handle_y: f32) -> f32 {
+fn get_pressure(handle_y: Scalar) -> Scalar {
     return handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
 }
 
-fn get_pressure_from_tempurature(volume: f32, tempurature: f32) -> f32 {
-    return tempurature / (volume * SPEED_SCALE);
+fn get_pressure_from_volume_and_tempurature(volume: Scalar, tempurature: Scalar) -> Scalar {
+    return tempurature * NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT / volume;
 }
 
-fn get_tempurature(handle_x: f32, handle_y: f32) -> f32 {
-    return get_volume(handle_x) * get_pressure(handle_y) * SPEED_SCALE;
+fn get_tempurature(handle_x: Scalar, handle_y: Scalar) -> Scalar {
+    return get_volume(handle_x) * get_pressure(handle_y)
+        / (NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT);
 }
 
-fn get_handle_x(volume: f32) -> f32 {
+fn get_handle_x(volume: Scalar) -> Scalar {
     return volume + (PLOT_POSITION.x - PLOT_WIDTH / 2.);
 }
 
-fn get_handle_y(pressure: f32) -> f32 {
+fn get_handle_y(pressure: Scalar) -> Scalar {
     return pressure + (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
 }
 
@@ -85,11 +88,11 @@ fn main() {
                 handle_pv_input,
                 move_handle,
                 move_piston,
-                move_walls,
+                move_box_floor_and_ceiling,
                 move_isobaric,
                 move_isochoric,
                 move_isothermic,
-                fix_particles,
+                fix_particles_location,
                 fix_particles_energy,
             ),
         )
@@ -143,7 +146,7 @@ fn move_piston(mut pistons: Query<&mut Position, With<Piston>>, data: Res<Data>)
     }
 }
 
-fn fix_particles(mut particles: Query<&mut Position, With<Particle>>, data: Res<Data>) {
+fn fix_particles_location(mut particles: Query<&mut Position, With<Particle>>, data: Res<Data>) {
     let mut rng = rand::thread_rng();
     for mut position in &mut particles {
         if position.x < BOX_POSITION.x - BOX_WIDTH / 2.
@@ -169,16 +172,21 @@ fn fix_particles_energy(
 ) {
     let mut current_energy = 0.;
     for velocity in &particles {
-        current_energy += velocity.length_squared();
+        current_energy += PARTICLE_MASS * velocity.length_squared() / 2.;
     }
-    let scale = (get_tempurature(data.handle_x, data.handle_y) / current_energy).sqrt();
+    let desired_energy =
+        3. / 2. * BOLTZMANN_CONSTANT * get_tempurature(data.handle_x, data.handle_y);
+    let scale = (desired_energy / current_energy).sqrt();
     for mut velocity in &mut particles {
         velocity.x *= scale;
         velocity.y *= scale;
     }
 }
 
-fn move_walls(mut walls: Query<&mut Transform, With<BoxFloorOrCeiling>>, data: Res<Data>) {
+fn move_box_floor_and_ceiling(
+    mut walls: Query<&mut Transform, With<BoxFloorOrCeiling>>,
+    data: Res<Data>,
+) {
     for mut transform in &mut walls {
         transform.scale.x =
             (data.handle_x + BOX_THICKNESS / 2. - (BOX_POSITION.x - BOX_WIDTH / 2.)) / BOX_WIDTH;
@@ -218,19 +226,21 @@ fn move_isochoric(mut isobarics: Query<&mut Path, With<IsochoricLine>>, data: Re
 
 fn move_isothermic(mut isothermics: Query<&mut Path, With<IsothermicLine>>, data: Res<Data>) {
     for mut path in &mut isothermics {
-        let tempurature = get_tempurature(data.handle_x, data.handle_y);
         let mut path_builder = PathBuilder::new();
         path_builder.move_to(Vec2 {
             x: data.handle_x,
             y: data.handle_y,
         });
-        for handle_x in ((PLOT_POSITION.x - PLOT_WIDTH / 2.) as i32..data.handle_x as i32).rev() {
-            let pressure = get_pressure_from_tempurature(get_volume(handle_x as f32), tempurature);
+        for handle_x in ((PLOT_POSITION.x - PLOT_WIDTH / 2.) as i64..=data.handle_x as i64).rev() {
+            let pressure = get_pressure_from_volume_and_tempurature(
+                get_volume(handle_x as Scalar),
+                get_tempurature(data.handle_x, data.handle_y),
+            );
             if pressure > get_pressure(PLOT_POSITION.y + PLOT_HEIGHT / 2.) {
                 break;
             }
             path_builder.line_to(Vec2 {
-                x: handle_x as f32,
+                x: handle_x as Scalar,
                 y: get_handle_y(pressure),
             });
         }
@@ -238,13 +248,16 @@ fn move_isothermic(mut isothermics: Query<&mut Path, With<IsothermicLine>>, data
             x: data.handle_x,
             y: data.handle_y,
         });
-        for handle_x in data.handle_x as i32..(PLOT_POSITION.x + PLOT_WIDTH / 2.) as i32 {
-            let pressure = get_pressure_from_tempurature(get_volume(handle_x as f32), tempurature);
+        for handle_x in data.handle_x as i64..=(PLOT_POSITION.x + PLOT_WIDTH / 2.) as i64 {
+            let pressure = get_pressure_from_volume_and_tempurature(
+                get_volume(handle_x as Scalar),
+                get_tempurature(data.handle_x, data.handle_y),
+            );
             if pressure < get_pressure(PLOT_POSITION.y - PLOT_HEIGHT / 2.) {
                 break;
             }
             path_builder.line_to(Vec2 {
-                x: handle_x as f32,
+                x: handle_x as Scalar,
                 y: get_handle_y(pressure),
             });
         }
@@ -266,17 +279,17 @@ fn setup(
 
     commands.spawn((
         ShapeBundle { ..default() },
-        Stroke::new(Color::BLACK, 5.0),
+        Stroke::new(Color::BLUE, 5.0),
         IsobaricLine,
     ));
     commands.spawn((
         ShapeBundle { ..default() },
-        Stroke::new(Color::BLACK, 5.0),
+        Stroke::new(Color::GREEN, 5.0),
         IsochoricLine,
     ));
     commands.spawn((
         ShapeBundle { ..default() },
-        Stroke::new(Color::BLACK, 5.0),
+        Stroke::new(Color::YELLOW, 5.0),
         IsothermicLine,
     ));
 
@@ -395,8 +408,8 @@ fn setup(
         Friction::new(0.),
     ));
     let mut rng = rand::thread_rng();
-    for x in -GRID_WIDTH_OUT..GRID_WIDTH_OUT + 1 {
-        for y in -GRID_HEIGHT_OUT..GRID_HEIGHT_OUT + 1 {
+    for x in -GRID_WIDTH_OUT..=GRID_WIDTH_OUT {
+        for y in -GRID_HEIGHT_OUT..=GRID_HEIGHT_OUT {
             commands.spawn((
                 MaterialMesh2dBundle {
                     mesh: meshes
