@@ -59,17 +59,13 @@ fn get_pressure(handle_y: Scalar) -> Scalar {
     return handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
 }
 
-fn get_pressure_from_volume_and_tempurature(volume: Scalar, tempurature: Scalar) -> Scalar {
-    return tempurature * NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT / volume;
-}
-
 fn get_tempurature(handle_x: Scalar, handle_y: Scalar) -> Scalar {
     return get_volume(handle_x) * get_pressure(handle_y)
         / (NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT);
 }
 
-fn get_handle_x(volume: Scalar) -> Scalar {
-    return volume + (PLOT_POSITION.x - PLOT_WIDTH / 2.);
+fn get_pressure_from_volume_and_tempurature(volume: Scalar, tempurature: Scalar) -> Scalar {
+    return tempurature * NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT / volume;
 }
 
 fn get_handle_y(pressure: Scalar) -> Scalar {
@@ -279,17 +275,17 @@ fn setup(
 
     commands.spawn((
         ShapeBundle { ..default() },
-        Stroke::new(Color::BLUE, 5.0),
+        Stroke::new(Color::rgb_u8(5, 46, 22), 5.0),
         IsobaricLine,
     ));
     commands.spawn((
         ShapeBundle { ..default() },
-        Stroke::new(Color::GREEN, 5.0),
+        Stroke::new(Color::rgb_u8(23, 37, 84), 5.0),
         IsochoricLine,
     ));
     commands.spawn((
         ShapeBundle { ..default() },
-        Stroke::new(Color::YELLOW, 5.0),
+        Stroke::new(Color::rgb_u8(69, 10, 10), 5.0),
         IsothermicLine,
     ));
 
