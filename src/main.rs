@@ -16,14 +16,14 @@ const GRID_WIDTH_OUT: i64 = 8;
 const GRID_HEIGHT_OUT: i64 = 4;
 const NUMBER_OF_PARTICLES: i64 = (GRID_WIDTH_OUT * 2 + 1) * (GRID_HEIGHT_OUT * 2 + 1);
 
-const PARTICLE_MASS: Scalar = 1e-2; // kg
+const PARTICLE_MASS: Scalar = 1e-3; // kg
 const PARTICLE_RADIUS: Scalar = 4.;
 const HANDLE_RADIUS: Scalar = 16.;
 
 const TEXT_OFFSET: Scalar = 10.;
 const FONT_SIZE: Scalar = 40.;
 
-const BOLTZMANN_CONSTANT: Scalar = 1.380649e-23; // J/K
+const BOLTZMANN_CONSTANT: Scalar = 1.; // J/K
 
 #[derive(Component)]
 struct Handle;
@@ -273,7 +273,10 @@ fn update_tempurature_reading(
     data: Res<Data>,
 ) {
     for mut text in &mut tempurature_readings {
-        text.sections[0].value = format!("T = {} K", get_tempurature(data.handle_x, data.handle_y));
+        text.sections[0].value = format!(
+            "T = {} K",
+            get_tempurature(data.handle_x, data.handle_y).round()
+        );
     }
 }
 
