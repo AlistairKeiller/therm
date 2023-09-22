@@ -30,10 +30,10 @@ struct Piston;
 struct Particle;
 
 #[derive(Component)]
-struct MovingWall;
+struct BoxFloorOrCeiling;
 
 #[derive(Component)]
-struct Isobaric;
+struct IsobaricLine;
 
 #[derive(Resource)]
 struct Data {
@@ -43,16 +43,10 @@ struct Data {
     delta_handle_y: f32,
 }
 
-impl Data {
-    fn get_volume(&self) -> f32 {
-        return self.handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.);
-    }
-    fn get_pressure(&self) -> f32 {
-        return self.handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
-    }
-    fn get_tempurature(&self) -> f32 {
-        return self.get_volume() * self.get_pressure() * SPEED_SCALE;
-    }
+fn get_tempurature(handle_x: f32, handle_y: f32) -> f32 {
+    return (handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.))
+        * (handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.))
+        * SPEED_SCALE;
 }
 
 fn main() {
@@ -67,10 +61,10 @@ fn main() {
                 handle_pv_input,
                 move_handle,
                 move_piston,
-                fix_particles,
-                fix_particles_energy,
                 move_walls,
                 move_isobaric,
+                fix_particles,
+                fix_particles_energy,
             ),
         )
         .run();
@@ -88,7 +82,12 @@ fn handle_pv_input(
             .0
             .viewport_to_world_2d(camera_q.single().1, cursor)
     }) {
-        if buttons.pressed(MouseButton::Left) {
+        if buttons.pressed(MouseButton::Left)
+            && mouse_position.x > PLOT_POSITION.x - PLOT_WIDTH / 2.
+            && mouse_position.x < PLOT_POSITION.x + PLOT_WIDTH / 2.
+            && mouse_position.y > PLOT_POSITION.y - PLOT_HEIGHT / 2.
+            && mouse_position.y < PLOT_POSITION.y + PLOT_HEIGHT / 2.
+        {
             let new_handle_x = mouse_position.x.clamp(
                 PLOT_POSITION.x - PLOT_WIDTH / 2. + HANDLE_RADIUS,
                 PLOT_POSITION.x + PLOT_WIDTH / 2. - HANDLE_RADIUS,
@@ -128,7 +127,7 @@ fn fix_particles(mut particles: Query<&mut Position, With<Particle>>, data: Res<
         {
             position.x = rng.gen_range(
                 BOX_POSITION.x - BOX_WIDTH / 2. + BOX_THICKNESS + PARTICLE_RADIUS
-                    ..data.handle_x - BOX_THICKNESS / 2.0 - PARTICLE_RADIUS,
+                    ..data.handle_x - BOX_THICKNESS / 2. - PARTICLE_RADIUS,
             );
             position.y = rng.gen_range(
                 BOX_POSITION.y - BOX_HEIGHT / 2. + BOX_THICKNESS + PARTICLE_RADIUS
@@ -143,26 +142,26 @@ fn fix_particles_energy(
     data: Res<Data>,
 ) {
     let mut current_energy = 0.;
-    for velocity in &mut particles {
+    for velocity in &particles {
         current_energy += velocity.length_squared();
     }
-    let scale = (data.get_tempurature() / current_energy).sqrt();
+    let scale = (get_tempurature(data.handle_x, data.handle_y) / current_energy).sqrt();
     for mut velocity in &mut particles {
         velocity.x *= scale;
         velocity.y *= scale;
     }
 }
 
-fn move_walls(mut walls: Query<&mut Transform, With<MovingWall>>, data: Res<Data>) {
+fn move_walls(mut walls: Query<&mut Transform, With<BoxFloorOrCeiling>>, data: Res<Data>) {
     for mut transform in &mut walls {
         transform.scale.x =
             (data.handle_x + BOX_THICKNESS / 2. - (BOX_POSITION.x - BOX_WIDTH / 2.)) / BOX_WIDTH;
         transform.translation.x =
-            (BOX_POSITION.x - BOX_WIDTH / 2. + data.handle_x + BOX_THICKNESS / 2.) / 2.;
+            (data.handle_x + BOX_THICKNESS / 2. + BOX_POSITION.x - BOX_WIDTH / 2.) / 2.;
     }
 }
 
-fn move_isobaric(mut isobarics: Query<&mut Path, With<Isobaric>>, data: Res<Data>) {
+fn move_isobaric(mut isobarics: Query<&mut Path, With<IsobaricLine>>, data: Res<Data>) {
     for mut path in &mut isobarics {
         let mut path_builder = PathBuilder::new();
         path_builder.move_to(Vec2 {
@@ -182,31 +181,18 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    commands.spawn(Camera2dBundle::default());
-
-    let mut path_builder = PathBuilder::new();
-    path_builder.move_to(Vec2 {
-        x: PLOT_POSITION.x - PLOT_WIDTH / 2.,
-        y: PLOT_POSITION.y,
-    });
-    path_builder.line_to(Vec2 {
-        x: PLOT_POSITION.x + PLOT_WIDTH / 2.,
-        y: PLOT_POSITION.y,
-    });
-    let path = path_builder.build();
-
-    commands.spawn((
-        ShapeBundle { path, ..default() },
-        Stroke::new(Color::BLACK, 5.0),
-        Isobaric,
-    ));
-
     commands.insert_resource(Data {
         handle_x: PLOT_POSITION.x,
         handle_y: PLOT_POSITION.y,
         delta_handle_x: 0.,
         delta_handle_y: 0.,
     });
+
+    commands.spawn((
+        ShapeBundle { ..default() },
+        Stroke::new(Color::BLACK, 5.0),
+        IsobaricLine,
+    ));
 
     commands.spawn((
         MaterialMesh2dBundle {
@@ -255,7 +241,7 @@ fn setup(
         Collider::cuboid(BOX_WIDTH, BOX_THICKNESS),
         Restitution::new(1.),
         Friction::new(0.),
-        MovingWall,
+        BoxFloorOrCeiling,
     ));
     // Floor
     commands.spawn((
@@ -277,7 +263,7 @@ fn setup(
         Collider::cuboid(BOX_WIDTH, BOX_THICKNESS),
         Restitution::new(1.),
         Friction::new(0.),
-        MovingWall,
+        BoxFloorOrCeiling,
     ));
     // Right Wall
     commands.spawn((
@@ -354,4 +340,6 @@ fn setup(
             ));
         }
     }
+
+    commands.spawn(Camera2dBundle::default());
 }
