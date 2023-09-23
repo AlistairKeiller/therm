@@ -80,7 +80,17 @@ fn get_handle_y(pressure: Scalar) -> Scalar {
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, ShapePlugin, PhysicsPlugins::default()))
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    fit_canvas_to_parent: true,
+                    ..default()
+                }),
+                ..default()
+            }),
+            ShapePlugin,
+            PhysicsPlugins::default(),
+        ))
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(Gravity::ZERO)
         .add_systems(Startup, setup)
