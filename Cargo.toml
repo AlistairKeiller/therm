@@ -3,12 +3,12 @@ name = "therm"
 version = "0.1.0"
 edition = "2021"
 
-[profile.release]
+[profile.wasm-release]
+inherits = "release"
 opt-level = "z"
 strip = true
 lto = true
 codegen-units = 1
-panic = "abort"
 
 [dependencies]
 bevy = "0.11"
