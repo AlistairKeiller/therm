@@ -24,6 +24,7 @@ const TEXT_OFFSET: Scalar = 10.;
 const FONT_SIZE: Scalar = 40.;
 
 const BOLTZMANN_CONSTANT: Scalar = 1.; // J/K
+const GAMMA: Scalar = 1.66;
 
 #[derive(Component)]
 struct Handle;
@@ -45,6 +46,9 @@ struct IsochoricLine;
 
 #[derive(Component)]
 struct IsothermicLine;
+
+#[derive(Component)]
+struct AdiabaticLine;
 
 #[derive(Component)]
 struct TempuratureReading;
@@ -99,6 +103,7 @@ fn main() {
                 move_isobaric,
                 move_isochoric,
                 move_isothermic,
+                move_adiabatic,
                 fix_particles_location,
                 fix_particles_energy,
                 update_tempurature_reading,
@@ -270,6 +275,43 @@ fn move_isothermic(mut isothermics: Query<&mut Path, With<IsothermicLine>>, data
     }
 }
 
+fn move_adiabatic(mut isothermics: Query<&mut Path, With<AdiabaticLine>>, data: Res<Data>) {
+    for mut path in &mut isothermics {
+        let mut path_builder = PathBuilder::new();
+        path_builder.move_to(Vec2 {
+            x: data.handle_x,
+            y: data.handle_y,
+        });
+        for handle_x in ((PLOT_POSITION.x - PLOT_WIDTH / 2.) as i64..=data.handle_x as i64).rev() {
+            let pressure = get_pressure(data.handle_y) * get_volume(data.handle_x).powf(GAMMA)
+                / get_volume(handle_x as Scalar).powf(GAMMA);
+            if pressure > get_pressure(PLOT_POSITION.y + PLOT_HEIGHT / 2.) {
+                break;
+            }
+            path_builder.line_to(Vec2 {
+                x: handle_x as Scalar,
+                y: get_handle_y(pressure),
+            });
+        }
+        path_builder.move_to(Vec2 {
+            x: data.handle_x,
+            y: data.handle_y,
+        });
+        for handle_x in data.handle_x as i64..=(PLOT_POSITION.x + PLOT_WIDTH / 2.) as i64 {
+            let pressure = get_pressure(data.handle_y) * get_volume(data.handle_x).powf(GAMMA)
+                / get_volume(handle_x as Scalar).powf(GAMMA);
+            if pressure < get_pressure(PLOT_POSITION.y - PLOT_HEIGHT / 2.) {
+                break;
+            }
+            path_builder.line_to(Vec2 {
+                x: handle_x as Scalar,
+                y: get_handle_y(pressure),
+            });
+        }
+        *path = path_builder.build();
+    }
+}
+
 fn update_tempurature_reading(
     mut tempurature_readings: Query<&mut Text, With<TempuratureReading>>,
     data: Res<Data>,
@@ -309,6 +351,11 @@ fn setup(
         ShapeBundle { ..default() },
         Stroke::new(Color::rgb_u8(69, 10, 10), 5.0),
         IsothermicLine,
+    ));
+    commands.spawn((
+        ShapeBundle { ..default() },
+        Stroke::new(Color::rgb_u8(59, 7, 100), 5.0),
+        AdiabaticLine,
     ));
 
     // handle on plot
@@ -372,7 +419,7 @@ fn setup(
         ),
         transform: Transform::from_translation(Vec3 {
             x: PLOT_POSITION.x + PLOT_WIDTH / 2. + TEXT_OFFSET,
-            y: PLOT_POSITION.y,
+            y: PLOT_POSITION.y - FONT_SIZE / 2.,
             z: 0.,
         }),
         text_anchor: Anchor::CenterLeft,
@@ -389,7 +436,7 @@ fn setup(
         ),
         transform: Transform::from_translation(Vec3 {
             x: PLOT_POSITION.x + PLOT_WIDTH / 2. + TEXT_OFFSET,
-            y: PLOT_POSITION.y + FONT_SIZE,
+            y: PLOT_POSITION.y + FONT_SIZE / 2.,
             z: 0.,
         }),
         text_anchor: Anchor::CenterLeft,
@@ -406,7 +453,24 @@ fn setup(
         ),
         transform: Transform::from_translation(Vec3 {
             x: PLOT_POSITION.x + PLOT_WIDTH / 2. + TEXT_OFFSET,
-            y: PLOT_POSITION.y - FONT_SIZE,
+            y: PLOT_POSITION.y + 3. * FONT_SIZE / 2.,
+            z: 0.,
+        }),
+        text_anchor: Anchor::CenterLeft,
+        ..default()
+    });
+    commands.spawn(Text2dBundle {
+        text: Text::from_section(
+            "adiabatic",
+            TextStyle {
+                font_size: FONT_SIZE,
+                color: Color::rgb_u8(59, 7, 100),
+                ..default()
+            },
+        ),
+        transform: Transform::from_translation(Vec3 {
+            x: PLOT_POSITION.x + PLOT_WIDTH / 2. + TEXT_OFFSET,
+            y: PLOT_POSITION.y - 3. * FONT_SIZE / 2.,
             z: 0.,
         }),
         text_anchor: Anchor::CenterLeft,
