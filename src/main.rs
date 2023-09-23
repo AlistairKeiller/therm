@@ -69,10 +69,6 @@ fn get_tempurature(handle_x: Scalar, handle_y: Scalar) -> Scalar {
         / (NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT);
 }
 
-fn get_pressure_from_volume_and_tempurature(volume: Scalar, tempurature: Scalar) -> Scalar {
-    return tempurature * NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT / volume;
-}
-
 fn get_handle_y(pressure: Scalar) -> Scalar {
     return pressure + (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
 }
@@ -245,10 +241,8 @@ fn move_isothermic(mut isothermics: Query<&mut Path, With<IsothermicLine>>, data
             y: data.handle_y,
         });
         for handle_x in ((PLOT_POSITION.x - PLOT_WIDTH / 2.) as i64..=data.handle_x as i64).rev() {
-            let pressure = get_pressure_from_volume_and_tempurature(
-                get_volume(handle_x as Scalar),
-                get_tempurature(data.handle_x, data.handle_y),
-            );
+            let pressure = get_pressure(data.handle_y) * get_volume(data.handle_x)
+                / get_volume(handle_x as Scalar);
             if pressure > get_pressure(PLOT_POSITION.y + PLOT_HEIGHT / 2.) {
                 break;
             }
@@ -262,10 +256,8 @@ fn move_isothermic(mut isothermics: Query<&mut Path, With<IsothermicLine>>, data
             y: data.handle_y,
         });
         for handle_x in data.handle_x as i64..=(PLOT_POSITION.x + PLOT_WIDTH / 2.) as i64 {
-            let pressure = get_pressure_from_volume_and_tempurature(
-                get_volume(handle_x as Scalar),
-                get_tempurature(data.handle_x, data.handle_y),
-            );
+            let pressure = get_pressure(data.handle_y) * get_volume(data.handle_x)
+                / get_volume(handle_x as Scalar);
             if pressure < get_pressure(PLOT_POSITION.y - PLOT_HEIGHT / 2.) {
                 break;
             }
