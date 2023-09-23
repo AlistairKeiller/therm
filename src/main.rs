@@ -61,20 +61,20 @@ struct Data {
 }
 
 fn get_volume(handle_x: Scalar) -> Scalar {
-    return handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.);
+    handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.)
 }
 
 fn get_pressure(handle_y: Scalar) -> Scalar {
-    return handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
+    handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.)
 }
 
 fn get_tempurature(handle_x: Scalar, handle_y: Scalar) -> Scalar {
-    return get_volume(handle_x) * get_pressure(handle_y)
-        / (NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT);
+    get_volume(handle_x) * get_pressure(handle_y)
+        / (NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT)
 }
 
 fn get_handle_y(pressure: Scalar) -> Scalar {
-    return pressure + (PLOT_POSITION.y - PLOT_HEIGHT / 2.);
+    pressure + (PLOT_POSITION.y - PLOT_HEIGHT / 2.)
 }
 
 fn main() {
