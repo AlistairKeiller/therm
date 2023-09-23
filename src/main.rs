@@ -53,8 +53,7 @@ struct TempuratureReading;
 struct Data {
     handle_x: Scalar,
     handle_y: Scalar,
-    delta_handle_x: Scalar,
-    delta_handle_y: Scalar,
+    work: Scalar,
 }
 
 fn get_volume(handle_x: Scalar) -> Scalar {
@@ -138,8 +137,9 @@ fn handle_pv_input(
                 PLOT_POSITION.y - PLOT_HEIGHT / 2. + HANDLE_RADIUS,
                 PLOT_POSITION.y + PLOT_HEIGHT / 2. - HANDLE_RADIUS,
             );
-            data.delta_handle_x = new_handle_x - data.handle_x;
-            data.delta_handle_y = new_handle_y - data.handle_y;
+            data.work -= (get_pressure(data.handle_y) + get_pressure(new_handle_y))
+                * (get_volume(data.handle_x) - get_volume(new_handle_x))
+                / 2.;
             data.handle_x = new_handle_x;
             data.handle_y = new_handle_y;
         }
@@ -284,8 +284,9 @@ fn update_tempurature_reading(
 ) {
     for mut text in &mut tempurature_readings {
         text.sections[0].value = format!(
-            "T = {} K",
-            get_tempurature(data.handle_x, data.handle_y).round()
+            "T = {} K\nW = {} J",
+            get_tempurature(data.handle_x, data.handle_y).round(),
+            data.work.round()
         );
     }
 }
@@ -298,8 +299,7 @@ fn setup(
     commands.insert_resource(Data {
         handle_x: PLOT_POSITION.x,
         handle_y: PLOT_POSITION.y,
-        delta_handle_x: 0.,
-        delta_handle_y: 0.,
+        work: 0.,
     });
 
     // lines on plot
