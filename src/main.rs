@@ -5,12 +5,12 @@ use rand::prelude::*;
 
 const BOX_WIDTH: Scalar = 1000.;
 const BOX_HEIGHT: Scalar = 250.;
-const BOX_POSITION: Vec2 = Vec2 { x: 0., y: 150. };
+const BOX_POSITION: Vec2 = Vec2 { x: 0., y: 110. };
 const BOX_THICKNESS: Scalar = 32.;
 
 const PLOT_WIDTH: Scalar = BOX_WIDTH - BOX_THICKNESS * 6.;
 const PLOT_HEIGHT: Scalar = BOX_HEIGHT;
-const PLOT_POSITION: Vec2 = Vec2 { x: 0., y: -150. };
+const PLOT_POSITION: Vec2 = Vec2 { x: 0., y: -190. };
 
 const GRID_WIDTH_OUT: i64 = 8;
 const GRID_HEIGHT_OUT: i64 = 4;
