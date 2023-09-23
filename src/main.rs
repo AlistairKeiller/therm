@@ -318,9 +318,12 @@ fn update_tempurature_reading(
 ) {
     for mut text in &mut tempurature_readings {
         text.sections[0].value = format!(
-            "T = {} K\nW = {} J",
+            "T = {} K\nW = {} J\nQ = {} J",
             get_tempurature(data.handle_x, data.handle_y).round(),
-            data.work.round()
+            data.work.round(),
+            (3. / 2. * BOLTZMANN_CONSTANT * get_tempurature(data.handle_x, data.handle_y)
+                + data.work)
+                .round()
         );
     }
 }
