@@ -16,15 +16,18 @@ const GRID_WIDTH_OUT: i64 = 8;
 const GRID_HEIGHT_OUT: i64 = 4;
 const NUMBER_OF_PARTICLES: i64 = (GRID_WIDTH_OUT * 2 + 1) * (GRID_HEIGHT_OUT * 2 + 1);
 
-const PARTICLE_MASS: Scalar = 1e-3; // kg
+const PARTICLE_MASS: Scalar = 1e-5; // kg
 const PARTICLE_RADIUS: Scalar = 4.;
 const HANDLE_RADIUS: Scalar = 16.;
 
 const TEXT_OFFSET: Scalar = 10.;
 const FONT_SIZE: Scalar = 40.;
 
-const BOLTZMANN_CONSTANT: Scalar = 1.; // J/K
+const BOLTZMANN_CONSTANT: Scalar = 1e-2; // J/K
 const GAMMA: Scalar = 1.66;
+
+const PRESSURE_SCALE: Scalar = 10.;
+const VOLUME_SCALE: Scalar = 10.;
 
 #[derive(Component)]
 struct Handle;
@@ -61,11 +64,11 @@ struct Data {
 }
 
 fn get_volume(handle_x: Scalar) -> Scalar {
-    handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.)
+    (handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.)) / VOLUME_SCALE
 }
 
 fn get_pressure(handle_y: Scalar) -> Scalar {
-    handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.)
+    (handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.)) / PRESSURE_SCALE
 }
 
 fn get_tempurature(handle_x: Scalar, handle_y: Scalar) -> Scalar {
@@ -74,7 +77,7 @@ fn get_tempurature(handle_x: Scalar, handle_y: Scalar) -> Scalar {
 }
 
 fn get_handle_y(pressure: Scalar) -> Scalar {
-    pressure + (PLOT_POSITION.y - PLOT_HEIGHT / 2.)
+    pressure * PRESSURE_SCALE + (PLOT_POSITION.y - PLOT_HEIGHT / 2.)
 }
 
 fn main() {
