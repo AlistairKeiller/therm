@@ -14,17 +14,19 @@ const PLOT_POSITION: Vec2 = Vec2 { x: 0., y: -190. };
 
 const GRID_WIDTH_OUT: i64 = 8;
 const GRID_HEIGHT_OUT: i64 = 4;
-const NUMBER_OF_PARTICLES: i64 = (GRID_WIDTH_OUT * 2 + 1) * (GRID_HEIGHT_OUT * 2 + 1);
 
-const PARTICLE_MASS: Scalar = 1e-5; // kg
+const PARTICLE_MASS: Scalar = 1e-3; // kg
 const PARTICLE_RADIUS: Scalar = 4.;
 const HANDLE_RADIUS: Scalar = 16.;
 
 const TEXT_OFFSET: Scalar = 10.;
 const FONT_SIZE: Scalar = 40.;
 
-const BOLTZMANN_CONSTANT: Scalar = 1e-2; // J/K
-const GAMMA: Scalar = 1.66;
+const R: Scalar = 8.314; // J mol^-1 K^-1
+const CP: Scalar = 5. / 2. * R; // J mol^-1 K^-1
+const CV: Scalar = 3. / 2. * R; // J mol^-1 K^-1
+const GAMMA: Scalar = CP / CV;
+const N: Scalar = 1.; // actually n in mols
 
 const PRESSURE_SCALE: Scalar = 10.;
 const VOLUME_SCALE: Scalar = 10.;
@@ -63,17 +65,24 @@ struct Data {
     work: Scalar,
 }
 
+// m^3
 fn get_volume(handle_x: Scalar) -> Scalar {
     (handle_x - (PLOT_POSITION.x - PLOT_WIDTH / 2.)) / VOLUME_SCALE
 }
 
+// Pa=N m^-2
 fn get_pressure(handle_y: Scalar) -> Scalar {
     (handle_y - (PLOT_POSITION.y - PLOT_HEIGHT / 2.)) / PRESSURE_SCALE
 }
 
+// K
 fn get_tempurature(handle_x: Scalar, handle_y: Scalar) -> Scalar {
-    get_volume(handle_x) * get_pressure(handle_y)
-        / (NUMBER_OF_PARTICLES as Scalar * BOLTZMANN_CONSTANT)
+    get_volume(handle_x) * get_pressure(handle_y) / (N * R)
+}
+
+// J
+fn get_energy(handle_x: Scalar, handle_y: Scalar) -> Scalar {
+    3. / 2. * N * R * get_tempurature(handle_x, handle_y)
 }
 
 fn get_handle_y(pressure: Scalar) -> Scalar {
@@ -191,9 +200,7 @@ fn fix_particles_energy(
     for velocity in &particles {
         current_energy += PARTICLE_MASS * velocity.length_squared() / 2.;
     }
-    let desired_energy =
-        3. / 2. * BOLTZMANN_CONSTANT * get_tempurature(data.handle_x, data.handle_y);
-    let scale = (desired_energy / current_energy).sqrt();
+    let scale = (get_energy(data.handle_x, data.handle_y) / current_energy).sqrt();
     for mut velocity in &mut particles {
         velocity.x *= scale;
         velocity.y *= scale;
@@ -324,9 +331,7 @@ fn update_tempurature_reading(
             "T = {} K\nW = {} J\nQ = {} J",
             get_tempurature(data.handle_x, data.handle_y).round(),
             data.work.round(),
-            (3. / 2. * BOLTZMANN_CONSTANT * get_tempurature(data.handle_x, data.handle_y)
-                + data.work)
-                .round()
+            (get_energy(data.handle_x, data.handle_y) + data.work).round()
         );
     }
 }
