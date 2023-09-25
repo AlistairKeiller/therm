@@ -85,8 +85,12 @@ fn get_energy(handle_x: Scalar, handle_y: Scalar) -> Scalar {
     3. / 2. * N * R * get_tempurature(handle_x, handle_y)
 }
 
+fn get_handle_x(volume: Scalar) -> Scalar {
+    volume * VOLUME_SCALE + PLOT_POSITION.x - PLOT_WIDTH / 2.
+}
+
 fn get_handle_y(pressure: Scalar) -> Scalar {
-    pressure * PRESSURE_SCALE + (PLOT_POSITION.y - PLOT_HEIGHT / 2.)
+    pressure * PRESSURE_SCALE + PLOT_POSITION.y - PLOT_HEIGHT / 2.
 }
 
 fn main() {
@@ -255,15 +259,13 @@ fn move_isothermic(mut isothermics: Query<&mut Path, With<IsothermicLine>>, data
             x: data.handle_x,
             y: data.handle_y,
         });
-        for handle_x in ((PLOT_POSITION.x - PLOT_WIDTH / 2.) as i64..=data.handle_x as i64).rev() {
-            let pressure = get_pressure(data.handle_y) * get_volume(data.handle_x)
-                / get_volume(handle_x as Scalar);
-            if pressure > get_pressure(PLOT_POSITION.y + PLOT_HEIGHT / 2.) {
-                break;
-            }
+        for handle_y in data.handle_y as i64..=(PLOT_POSITION.y + PLOT_HEIGHT / 2.) as i64 {
             path_builder.line_to(Vec2 {
-                x: handle_x as Scalar,
-                y: get_handle_y(pressure),
+                x: get_handle_x(
+                    get_volume(data.handle_x) * get_pressure(data.handle_y)
+                        / get_pressure(handle_y as Scalar),
+                ),
+                y: handle_y as Scalar,
             });
         }
         path_builder.move_to(Vec2 {
@@ -271,14 +273,12 @@ fn move_isothermic(mut isothermics: Query<&mut Path, With<IsothermicLine>>, data
             y: data.handle_y,
         });
         for handle_x in data.handle_x as i64..=(PLOT_POSITION.x + PLOT_WIDTH / 2.) as i64 {
-            let pressure = get_pressure(data.handle_y) * get_volume(data.handle_x)
-                / get_volume(handle_x as Scalar);
-            if pressure < get_pressure(PLOT_POSITION.y - PLOT_HEIGHT / 2.) {
-                break;
-            }
             path_builder.line_to(Vec2 {
                 x: handle_x as Scalar,
-                y: get_handle_y(pressure),
+                y: get_handle_y(
+                    get_pressure(data.handle_y) * get_volume(data.handle_x)
+                        / get_volume(handle_x as Scalar),
+                ),
             });
         }
         *path = path_builder.build();
@@ -292,15 +292,14 @@ fn move_adiabatic(mut isothermics: Query<&mut Path, With<AdiabaticLine>>, data: 
             x: data.handle_x,
             y: data.handle_y,
         });
-        for handle_x in ((PLOT_POSITION.x - PLOT_WIDTH / 2.) as i64..=data.handle_x as i64).rev() {
-            let pressure = get_pressure(data.handle_y) * get_volume(data.handle_x).powf(GAMMA)
-                / get_volume(handle_x as Scalar).powf(GAMMA);
-            if pressure > get_pressure(PLOT_POSITION.y + PLOT_HEIGHT / 2.) {
-                break;
-            }
+        for handle_y in data.handle_y as i64..=(PLOT_POSITION.y + PLOT_HEIGHT / 2.) as i64 {
             path_builder.line_to(Vec2 {
-                x: handle_x as Scalar,
-                y: get_handle_y(pressure),
+                x: get_handle_x(
+                    (get_volume(data.handle_x).powf(GAMMA) * get_pressure(data.handle_y)
+                        / get_pressure(handle_y as Scalar))
+                    .powf(1. / GAMMA),
+                ),
+                y: handle_y as Scalar,
             });
         }
         path_builder.move_to(Vec2 {
@@ -308,14 +307,12 @@ fn move_adiabatic(mut isothermics: Query<&mut Path, With<AdiabaticLine>>, data: 
             y: data.handle_y,
         });
         for handle_x in data.handle_x as i64..=(PLOT_POSITION.x + PLOT_WIDTH / 2.) as i64 {
-            let pressure = get_pressure(data.handle_y) * get_volume(data.handle_x).powf(GAMMA)
-                / get_volume(handle_x as Scalar).powf(GAMMA);
-            if pressure < get_pressure(PLOT_POSITION.y - PLOT_HEIGHT / 2.) {
-                break;
-            }
             path_builder.line_to(Vec2 {
                 x: handle_x as Scalar,
-                y: get_handle_y(pressure),
+                y: get_handle_y(
+                    get_pressure(data.handle_y) * get_volume(data.handle_x).powf(GAMMA)
+                        / get_volume(handle_x as Scalar).powf(GAMMA),
+                ),
             });
         }
         *path = path_builder.build();
